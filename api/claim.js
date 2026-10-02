@@ -25,9 +25,9 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: 'Invalid ids' });
     }
 
-    // Already claimed by this or another device?
     const existingClaim = await getPaymentClaim(paymentId);
-    if (existingClaim) {
+    // Fully claimed by a device already
+    if (existingClaim && existingClaim.deviceId) {
       if (existingClaim.deviceId === deviceId) {
         const dev = await getDevice(deviceId);
         return res.status(200).json({
@@ -41,7 +41,6 @@ module.exports = async function handler(req, res) {
       return res.status(409).json({ error: 'This payment was already claimed on another device' });
     }
 
-    // Ask Razorpay (server has Key Secret) — only captured payments unlock
     const payment = await fetchPayment(paymentId);
     const status = String(payment.status || '').toLowerCase();
     if (status !== 'captured' && status !== 'authorized') {
