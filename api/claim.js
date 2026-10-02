@@ -1,11 +1,15 @@
-const { fetchPayment } = require('../lib/razorpay');
-const { planFromAmount } = require('../lib/plans');
+const { fetchPayment, hasApiKeys } = require('../lib/razorpay');
+const { planFromAmount, PLANS } = require('../lib/plans');
 const { getPaymentClaim, setPaymentClaim, getDevice, setDevice } = require('../lib/store');
 
 function cors(res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+}
+
+function planById(id) {
+  return PLANS.find((p) => p.id === id) || null;
 }
 
 module.exports = async function handler(req, res) {
@@ -26,7 +30,8 @@ module.exports = async function handler(req, res) {
     }
 
     const existingClaim = await getPaymentClaim(paymentId);
-    // Fully claimed by a device already
+
+    // Already bound to a device
     if (existingClaim && existingClaim.deviceId) {
       if (existingClaim.deviceId === deviceId) {
         const dev = await getDevice(deviceId);
@@ -41,19 +46,38 @@ module.exports = async function handler(req, res) {
       return res.status(409).json({ error: 'This payment was already claimed on another device' });
     }
 
-    const payment = await fetchPayment(paymentId);
-    const status = String(payment.status || '').toLowerCase();
-    if (status !== 'captured' && status !== 'authorized') {
-      return res.status(402).json({
-        error: `Payment not successful (status: ${status || 'unknown'})`,
-      });
+    let plan = null;
+    let amountPaise = 0;
+    let source = '';
+
+    // Path 1 (NO Live API keys): payment must already be marked paid by Razorpay WEBHOOK
+    if (existingClaim && (existingClaim.reserved || existingClaim.paidAt || existingClaim.status)) {
+      plan = planById(existingClaim.planId) || planFromAmount(existingClaim.amountPaise);
+      amountPaise = existingClaim.amountPaise || plan?.amountPaise || 0;
+      source = 'webhook';
     }
 
-    const amount = Number(payment.amount);
-    const plan = planFromAmount(amount);
+    // Path 2 (optional): if Live API keys exist later, verify directly with Razorpay
+    if (!plan && hasApiKeys()) {
+      try {
+        const payment = await fetchPayment(paymentId);
+        const status = String(payment.status || '').toLowerCase();
+        if (status === 'captured' || status === 'authorized') {
+          plan = planFromAmount(Number(payment.amount));
+          amountPaise = Number(payment.amount);
+          source = 'api';
+        }
+      } catch (e) {
+        console.warn('API verify skipped/failed', e.message);
+      }
+    }
+
     if (!plan) {
-      return res.status(400).json({
-        error: `Unknown amount ${amount} paise. Expected 1900 (₹19) or 3900 (₹39).`,
+      return res.status(402).json({
+        error:
+          'Payment abhi confirm nahi hua. 10–20 sec wait karke phir Verify dabao. ' +
+          'Razorpay webhook ko payment pehle server tak bhejna chahiye (Live API keys ki zaroorat nahi).',
+        code: 'WAIT_FOR_WEBHOOK',
       });
     }
 
@@ -62,22 +86,22 @@ module.exports = async function handler(req, res) {
     const base = Math.max(now, prev?.expiresAt || 0);
     const expiresAt = base + plan.days * 24 * 60 * 60 * 1000;
 
-    const entitlement = {
-      deviceId,
-      planId: plan.id,
-      expiresAt,
-      paymentId,
-      amountPaise: amount,
-      activatedAt: now,
-    };
-
     await setPaymentClaim(paymentId, {
       deviceId,
       planId: plan.id,
       expiresAt,
       claimedAt: now,
+      amountPaise,
+      source,
     });
-    await setDevice(deviceId, entitlement);
+    await setDevice(deviceId, {
+      deviceId,
+      planId: plan.id,
+      expiresAt,
+      paymentId,
+      amountPaise,
+      activatedAt: now,
+    });
 
     return res.status(200).json({
       ok: true,
@@ -86,6 +110,7 @@ module.exports = async function handler(req, res) {
       expiresAt,
       days: plan.days,
       label: plan.label,
+      source,
     });
   } catch (e) {
     console.error('claim error', e);
