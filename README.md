@@ -1,74 +1,93 @@
-# GMAX Premium API (Vercel)
+# GMAX Premium API — **bina Live API Key / Secret**
 
-Secure unlock: **Razorpay payment must be `captured`** before Premium activates. The app cannot unlock without a real `pay_…` id verified by this server.
+Live API keys reject ho gaye? Theek hai.
 
-Repo: https://github.com/gamxsharma305-png/gmax-premium-api
+**Payment Links** se paise lo + **Webhook** se server ko automatic notice — **Key Id / Key Secret ki zaroorat nahi**.
 
-## Endpoints
+Webhook Secret ≠ API Key Secret. Yeh Webhook banate time Razorpay khud generate karta hai.
 
-| Endpoint | Use |
-|----------|-----|
-| `POST /api/claim` | `{ paymentId, deviceId }` → Razorpay verify + unlock |
-| `GET /api/status?deviceId=` | Is this device premium? |
-| `POST /api/webhook` | Razorpay webhooks |
-| `/payment-success.html` | Redirect after pay |
+## Flow (automatic, no admin)
 
-## 1. Deploy on Vercel
+```text
+User app me Pay → Razorpay Payment Link page
+        ↓
+Paise successful
+        ↓
+Razorpay → WEBHOOK → tumhara Vercel /api/webhook
+        ↓
+Server: yeh pay_… PAID mark
+        ↓
+App Payment ID bhejti hai /api/claim
+        ↓
+Server: webhook me paid hai? → Premium ON
+```
 
-1. Open [vercel.com](https://vercel.com) → **Add New Project**
-2. Import **gamxsharma305-png/gmax-premium-api**
-3. Deploy (Framework: Other, no build command)
-4. Copy URL, e.g. `https://gmax-premium-api-xxxx.vercel.app`
+Admin approve nahi. Manual nahi. Sirf Razorpay payment page + webhook.
 
-## 2. Env variables (Vercel → Project → Settings → Environment Variables)
+## 1. Vercel deploy
 
-| Name | Where from |
-|------|------------|
-| `RAZORPAY_KEY_ID` | Razorpay → Account & Settings → API Keys |
-| `RAZORPAY_KEY_SECRET` | Same (never put in Android app) |
-| `RAZORPAY_WEBHOOK_SECRET` | Webhook secret (step 3) |
-| `UPSTASH_REDIS_REST_URL` | Upstash Redis REST URL |
-| `UPSTASH_REDIS_REST_TOKEN` | Upstash REST token |
+1. https://vercel.com → Import `gamxsharma305-png/gmax-premium-api`
+2. Deploy
+3. URL note karo: `https://xxxxx.vercel.app`
 
-Save → **Redeploy**.
+## 2. Env (sirf yeh — API keys OPTIONAL)
 
-### Upstash free Redis
+| Name | Zaroori? | Kahan se |
+|------|----------|----------|
+| `RAZORPAY_WEBHOOK_SECRET` | Haan | Webhook create → Secret |
+| `UPSTASH_REDIS_REST_URL` | Haan (prod) | upstash.com free Redis |
+| `UPSTASH_REDIS_REST_TOKEN` | Haan (prod) | Upstash |
+| `RAZORPAY_KEY_ID` | Nahi | Skip if rejected |
+| `RAZORPAY_KEY_SECRET` | Nahi | Skip if rejected |
 
-1. [console.upstash.com](https://console.upstash.com) → Create Redis database
-2. **REST API** tab → copy URL + token → Vercel env
+Redeploy after env.
 
-Without Upstash, data is in-memory only (lost on cold start). Production ke liye Upstash zaroori hai.
+## 3. Razorpay Webhook (sabse important)
 
-## 3. Razorpay Webhook
+Dashboard login (jahan Payment Links hain):
 
-1. Razorpay Dashboard → **Account & Settings → Webhooks → Add**
-2. URL: `https://YOUR-VERCEL-URL/api/webhook`
-3. Active events: `payment.captured`, `payment_link.paid`
-4. Secret copy → `RAZORPAY_WEBHOOK_SECRET`
+1. **Account & Settings → Webhooks → Add**
+2. URL:
+   ```text
+   https://YOUR-VERCEL-URL/api/webhook
+   ```
+3. Events:
+   - `payment.captured`
+   - `payment_link.paid`
+4. **Secret** copy → Vercel `RAZORPAY_WEBHOOK_SECRET`
+5. Active ON
 
-## 4. Payment Link redirect (dono links)
+Agar Webhooks menu hi nahi dikhta / create fail — account restrict ho sakta hai; tab bata dena.
 
-₹19: https://rzp.io/rzp/CXGmrGhC  
-₹39: https://rzp.io/rzp/bNWwvel
+## 4. Payment Link redirect
 
-Edit each link → **Callback / Redirect URL**:
+₹19 + ₹39 links pe Callback URL:
 
 ```text
 https://YOUR-VERCEL-URL/payment-success.html
 ```
 
-## 5. Android app
+## 5. App
 
-After deploy, put base URL in app (`PREMIUM_API_BASE`). User pays → enters `pay_…` → app calls `/api/claim` → unlock only if Razorpay says captured.
+`src/services/PremiumApi.ts`:
 
-## Flow
-
-```text
-Pay on Razorpay → money captured
-       ↓
-App sends paymentId + deviceId to /api/claim
-       ↓
-Server calls Razorpay API with Key Secret
-       ↓
-status captured + amount ₹19/₹39 → bind device → Premium
+```ts
+export const PREMIUM_API_BASE = 'https://YOUR-VERCEL-URL';
 ```
+
+## User steps
+
+1. App → Pay ₹19/₹39 (Razorpay page)
+2. Success
+3. 5–20 sec wait (webhook aane do)
+4. Payment ID (`pay_…`) → **Verify & Unlock**
+5. Premium on
+
+Agar turant claim pe error “WAIT_FOR_WEBHOOK” → 15 sec baad dubara Verify.
+
+## Security
+
+- Unlock tabhi jab **Razorpay webhook** ne payment paid mark kiya
+- Fake `pay_` id se unlock nahi (webhook me entry nahi)
+- Ek payment ek device
+- Live API keys optional
