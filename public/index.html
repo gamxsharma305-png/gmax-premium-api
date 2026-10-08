@@ -83,8 +83,9 @@
 <body>
   <header>
     <h1><span>GMAX</span> Analytics</h1>
-    <div style="display:flex;align-items:center;gap:12px;">
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
       <span class="meta" id="updated">Loading…</span>
+      <span class="meta" style="opacity:.7">· auto every 1h</span>
       <button class="refresh" type="button" onclick="load()">Refresh</button>
     </div>
   </header>
@@ -173,7 +174,8 @@
     }
 
     load();
-    setInterval(load, 60000);
+    // Auto refresh only once per hour — saves Upstash Redis commands
+    setInterval(load, 60 * 60 * 1000);
   </script>
 </body>
 </html>
