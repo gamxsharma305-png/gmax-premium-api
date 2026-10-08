@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GMAX Analytics</title>
+  <style>
+    :root {
+      --bg: #050707;
+      --card: #121414;
+      --border: rgba(255,255,255,0.08);
+      --text: #f0f0f0;
+      --muted: #8a8f8e;
+      --green: #1db954;
+      --accent: #6ee7a0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+    header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.25rem;
+      letter-spacing: 0.08em;
+    }
+    header h1 span { color: var(--green); }
+    .meta { color: var(--muted); font-size: 0.85rem; }
+    main { padding: 24px; max-width: 1100px; margin: 0 auto; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 18px;
+    }
+    .card .label { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    .card .value { font-size: 1.75rem; font-weight: 700; margin-top: 6px; color: var(--accent); }
+    .card .sub { color: var(--muted); font-size: 0.8rem; margin-top: 4px; }
+    h2 { font-size: 1rem; margin: 0 0 12px; color: var(--muted); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; }
+    td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    .bar-wrap { display: flex; align-items: center; gap: 8px; }
+    .bar {
+      height: 8px;
+      border-radius: 4px;
+      background: var(--green);
+      min-width: 2px;
+    }
+    .err { color: #e07a5f; padding: 24px; }
+    .row2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; }
+    @media (max-width: 720px) { .row2 { grid-template-columns: 1fr; } }
+    button.refresh {
+      background: var(--green);
+      color: #050707;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><span>GMAX</span> Analytics</h1>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span class="meta" id="updated">Loading…</span>
+      <button class="refresh" type="button" onclick="load()">Refresh</button>
+    </div>
+  </header>
+  <main>
+    <div class="grid" id="kpi"></div>
+    <div class="row2">
+      <section class="card">
+        <h2>Last 14 days</h2>
+        <div style="overflow-x:auto">
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th class="num">Installs</th>
+                <th class="num">Opens</th>
+                <th class="num">Unique opens</th>
+                <th class="num">Song plays</th>
+                <th class="num">Listeners</th>
+              </tr>
+            </thead>
+            <tbody id="series"></tbody>
+          </table>
+        </div>
+      </section>
+      <section class="card">
+        <h2>Page visits (range)</h2>
+        <div id="pages"></div>
+      </section>
+    </div>
+  </main>
+  <script>
+    const API = '/api/analytics?days=14';
+
+    function fmt(n) {
+      return (n || 0).toLocaleString('en-IN');
+    }
+
+    function render(data) {
+      const t = data.today || {};
+      document.getElementById('kpi').innerHTML = `
+        <div class="card"><div class="label">Total installs</div><div class="value">${fmt(data.totalDevices)}</div><div class="sub">Unique devices ever</div></div>
+        <div class="card"><div class="label">Today installs</div><div class="value">${fmt(t.installs)}</div><div class="sub">${t.date || ''}</div></div>
+        <div class="card"><div class="label">Today opens</div><div class="value">${fmt(t.opens)}</div><div class="sub">${fmt(t.uniqueOpens)} unique devices</div></div>
+        <div class="card"><div class="label">Today song plays</div><div class="value">${fmt(t.songPlays)}</div><div class="sub">${fmt(t.uniquePlays)} listeners</div></div>
+      `;
+
+      const rows = (data.series || []).slice().reverse();
+      document.getElementById('series').innerHTML = rows.map(r => `
+        <tr>
+          <td>${r.date}</td>
+          <td class="num">${fmt(r.installs)}</td>
+          <td class="num">${fmt(r.opens)}</td>
+          <td class="num">${fmt(r.uniqueOpens)}</td>
+          <td class="num">${fmt(r.songPlays)}</td>
+          <td class="num">${fmt(r.uniquePlays)}</td>
+        </tr>
+      `).join('') || '<tr><td colspan="6">No data yet</td></tr>';
+
+      const pages = Object.entries(data.pagesAll || {}).sort((a,b) => b[1]-a[1]);
+      const max = pages[0] ? pages[0][1] : 1;
+      document.getElementById('pages').innerHTML = pages.length
+        ? pages.map(([name, c]) => `
+          <div style="margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;font-size:0.9rem;margin-bottom:4px">
+              <span>${name}</span><span class="num">${fmt(c)}</span>
+            </div>
+            <div class="bar-wrap"><div class="bar" style="width:${Math.max(4, (c/max)*100)}%"></div></div>
+          </div>
+        `).join('')
+        : '<p class="meta">No page views yet</p>';
+
+      const when = data.generatedAt ? new Date(data.generatedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '';
+      document.getElementById('updated').textContent = when ? `IST · ${when}` : '';
+    }
+
+    async function load() {
+      document.getElementById('updated').textContent = 'Loading…';
+      try {
+        const res = await fetch(API + '&t=' + Date.now());
+        const data = await res.json();
+        if (!data.ok && data.error) throw new Error(data.error);
+        render(data);
+      } catch (e) {
+        document.getElementById('kpi').innerHTML = `<p class="err">${e.message || e}</p>`;
+      }
+    }
+
+    load();
+    setInterval(load, 60000);
+  </script>
+</body>
+</html>
