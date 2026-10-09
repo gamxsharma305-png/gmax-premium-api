@@ -6,159 +6,500 @@
   <title>GMAX Analytics</title>
   <style>
     :root {
-      --bg: #050707;
-      --card: #121414;
-      --border: rgba(255,255,255,0.08);
-      --text: #f0f0f0;
-      --muted: #8a8f8e;
-      --green: #1db954;
-      --accent: #6ee7a0;
+      --bg: #07090c;
+      --panel: rgba(18, 22, 28, 0.72);
+      --panel-solid: #12161c;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-strong: rgba(255, 255, 255, 0.12);
+      --text: #f4f6f8;
+      --muted: #8b939c;
+      --green: #1ed760;
+      --green-dim: rgba(30, 215, 96, 0.15);
+      --cyan: #3dd6c6;
+      --orange: #f5a524;
+      --red: #e07a5f;
+      --sidebar-w: 240px;
     }
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      margin: 0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-      background: var(--bg);
+      font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% 0%, rgba(30, 215, 96, 0.06), transparent),
+        radial-gradient(ellipse 60% 40% at 90% 20%, rgba(61, 214, 198, 0.05), transparent),
+        var(--bg);
       color: var(--text);
       min-height: 100vh;
+      overflow-x: hidden;
     }
-    header {
-      padding: 20px 24px;
-      border-bottom: 1px solid var(--border);
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .shell {
+      display: flex;
+      min-height: 100vh;
+      position: relative;
+      z-index: 1;
+    }
+    /* Sidebar */
+    .sidebar {
+      width: var(--sidebar-w);
+      flex-shrink: 0;
+      background: rgba(10, 12, 16, 0.85);
+      border-right: 1px solid var(--border);
+      backdrop-filter: blur(20px);
+      padding: 20px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .brand {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 12px;
+      gap: 10px;
+      padding: 8px 10px 20px;
     }
-    header h1 {
-      margin: 0;
-      font-size: 1.25rem;
-      letter-spacing: 0.08em;
+    .brand-logo {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #1ed760, #0d9f45);
+      display: grid; place-items: center;
+      font-weight: 800; font-size: 14px; color: #050707;
     }
-    header h1 span { color: var(--green); }
-    .meta { color: var(--muted); font-size: 0.85rem; }
-    main { padding: 24px; max-width: 1100px; margin: 0 auto; }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-      gap: 14px;
-      margin-bottom: 28px;
+    .brand h1 { font-size: 15px; font-weight: 700; letter-spacing: 0.04em; }
+    .brand p { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .nav-label {
+      font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--muted); padding: 12px 12px 6px;
     }
-    .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 16px 18px;
+    .nav-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: 10px;
+      color: var(--muted); font-size: 13px; font-weight: 500;
+      cursor: pointer; border: none; background: transparent; width: 100%; text-align: left;
+      transition: background 0.15s, color 0.15s;
     }
-    .card .label { color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.06em; }
-    .card .value { font-size: 1.75rem; font-weight: 700; margin-top: 6px; color: var(--accent); }
-    .card .sub { color: var(--muted); font-size: 0.8rem; margin-top: 4px; }
-    h2 { font-size: 1rem; margin: 0 0 12px; color: var(--muted); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-    th, td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); }
-    th { color: var(--muted); font-weight: 500; font-size: 0.75rem; text-transform: uppercase; }
-    td.num { text-align: right; font-variant-numeric: tabular-nums; }
-    .bar-wrap { display: flex; align-items: center; gap: 8px; }
-    .bar {
-      height: 8px;
-      border-radius: 4px;
-      background: var(--green);
-      min-width: 2px;
+    .nav-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+    .nav-item.active {
+      background: var(--green-dim);
+      color: var(--green);
     }
-    .err { color: #e07a5f; padding: 24px; }
-    .row2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; }
-    @media (max-width: 720px) { .row2 { grid-template-columns: 1fr; } }
-    button.refresh {
-      background: var(--green);
-      color: #050707;
-      border: none;
-      border-radius: 8px;
-      padding: 8px 14px;
-      font-weight: 600;
+    .nav-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.7;
+    }
+    .sidebar-foot {
+      margin-top: auto;
+      padding: 12px;
+      border-top: 1px solid var(--border);
+      font-size: 11px; color: var(--muted);
+    }
+    /* Main */
+    .main {
+      flex: 1;
+      padding: 20px 24px 32px;
+      max-width: 1280px;
+      min-width: 0;
+    }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 12px; margin-bottom: 22px;
+    }
+    .topbar h2 {
+      font-size: 22px; font-weight: 700;
+    }
+    .topbar h2 span { color: var(--orange); }
+    .topbar-actions {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    }
+    .pill {
+      font-size: 12px; color: var(--muted);
+      background: var(--panel); border: 1px solid var(--border);
+      border-radius: 999px; padding: 6px 12px;
+      backdrop-filter: blur(12px);
+    }
+    .btn {
+      background: var(--green); color: #050707;
+      border: none; border-radius: 10px;
+      padding: 8px 14px; font-weight: 700; font-size: 13px;
       cursor: pointer;
+    }
+    .btn:hover { filter: brightness(1.08); }
+    /* Glass card */
+    .glass {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+    }
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+    .kpi {
+      padding: 18px 18px 16px;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .kpi:hover {
+      transform: translateY(-3px);
+      border-color: var(--border-strong);
+    }
+    .kpi .label {
+      font-size: 12px; color: var(--muted); font-weight: 500;
+    }
+    .kpi .value {
+      font-size: 26px; font-weight: 700; margin-top: 8px;
+      letter-spacing: -0.02em;
+    }
+    .kpi .sub {
+      font-size: 11px; color: var(--green); margin-top: 8px;
+      display: flex; align-items: center; gap: 4px;
+    }
+    .kpi .sub.muted { color: var(--muted); }
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1.55fr 1fr;
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .panel {
+      padding: 18px;
+    }
+    .panel-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .panel-head h3 {
+      font-size: 14px; font-weight: 600;
+    }
+    .panel-head .tabs {
+      display: flex; gap: 6px;
+    }
+    .tab {
+      font-size: 11px; color: var(--muted);
+      padding: 4px 10px; border-radius: 6px;
+      background: transparent; border: 1px solid transparent;
+      cursor: default;
+    }
+    .tab.on {
+      color: var(--text);
+      background: rgba(255,255,255,0.06);
+      border-color: var(--border);
+    }
+    .chart-wrap {
+      height: 200px; position: relative;
+    }
+    .chart-wrap svg { width: 100%; height: 100%; display: block; }
+    .donut-wrap {
+      display: flex; align-items: center; gap: 20px;
+      min-height: 180px;
+    }
+    .donut {
+      width: 140px; height: 140px; position: relative; flex-shrink: 0;
+    }
+    .donut svg { transform: rotate(-90deg); }
+    .donut-center {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      font-weight: 700; font-size: 22px;
+    }
+    .donut-center span { font-size: 11px; color: var(--muted); font-weight: 500; }
+    .legend { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+    .legend-row {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 12px;
+    }
+    .legend-row .left { display: flex; align-items: center; gap: 8px; color: var(--muted); }
+    .swatch { width: 8px; height: 8px; border-radius: 2px; }
+    table.data {
+      width: 100%; border-collapse: collapse; font-size: 13px;
+    }
+    table.data th {
+      text-align: left; color: var(--muted); font-weight: 500;
+      font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em;
+      padding: 8px 6px; border-bottom: 1px solid var(--border);
+    }
+    table.data td {
+      padding: 10px 6px; border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    table.data td.num { text-align: right; font-variant-numeric: tabular-nums; }
+    table.data tr:last-child td { border-bottom: none; }
+    .bar-track {
+      height: 6px; border-radius: 3px; background: rgba(255,255,255,0.06);
+      overflow: hidden; margin-top: 4px;
+    }
+    .bar-fill {
+      height: 100%; border-radius: 3px;
+      background: linear-gradient(90deg, var(--green), var(--cyan));
+    }
+    .page-row { margin-bottom: 12px; }
+    .page-row .name {
+      display: flex; justify-content: space-between; font-size: 13px;
+    }
+    .err { color: var(--red); padding: 24px; }
+    @media (max-width: 980px) {
+      .kpi-row { grid-template-columns: repeat(2, 1fr); }
+      .grid-2 { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+    }
+    @media (max-width: 520px) {
+      .kpi-row { grid-template-columns: 1fr; }
+      .main { padding: 14px; }
     }
   </style>
 </head>
 <body>
-  <header>
-    <h1><span>GMAX</span> Analytics</h1>
-    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-      <span class="meta" id="updated">Loading…</span>
-      <span class="meta" style="opacity:.7">· auto every 1h</span>
-      <button class="refresh" type="button" onclick="load()">Refresh</button>
-    </div>
-  </header>
-  <main>
-    <div class="grid" id="kpi"></div>
-    <div class="row2">
-      <section class="card">
-        <h2>Last 14 days</h2>
-        <div style="overflow-x:auto">
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th class="num">Installs</th>
-                <th class="num">Opens</th>
-                <th class="num">Unique opens</th>
-                <th class="num">Song plays</th>
-                <th class="num">Listeners</th>
-              </tr>
-            </thead>
-            <tbody id="series"></tbody>
-          </table>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">G</div>
+        <div>
+          <h1>GMAX</h1>
+          <p>Analytics Center</p>
         </div>
-      </section>
-      <section class="card">
-        <h2>Page visits (range)</h2>
-        <div id="pages"></div>
-      </section>
+      </div>
+      <div class="nav-label">Menu</div>
+      <button type="button" class="nav-item active"><span class="nav-dot"></span> Overview</button>
+      <button type="button" class="nav-item"><span class="nav-dot"></span> Analytics</button>
+      <button type="button" class="nav-item"><span class="nav-dot"></span> Installs</button>
+      <button type="button" class="nav-item"><span class="nav-dot"></span> Plays</button>
+      <div class="nav-label">System</div>
+      <button type="button" class="nav-item"><span class="nav-dot"></span> Remote config</button>
+      <button type="button" class="nav-item"><span class="nav-dot"></span> Ads</button>
+      <div class="sidebar-foot">
+        Upstash Redis · IST<br />
+        Auto refresh 1h
+      </div>
+    </aside>
+
+    <div class="main">
+      <div class="topbar">
+        <h2>Dashboard <span>V10</span></h2>
+        <div class="topbar-actions">
+          <span class="pill" id="updated">Loading…</span>
+          <button type="button" class="btn" onclick="load()">Refresh</button>
+        </div>
+      </div>
+
+      <div class="kpi-row" id="kpi">
+        <div class="glass kpi"><div class="label">Total installs</div><div class="value">—</div><div class="sub muted">Unique devices</div></div>
+        <div class="glass kpi"><div class="label">Today installs</div><div class="value">—</div><div class="sub muted">IST day</div></div>
+        <div class="glass kpi"><div class="label">Today opens</div><div class="value">—</div><div class="sub muted">App launches</div></div>
+        <div class="glass kpi"><div class="label">Song plays</div><div class="value">—</div><div class="sub muted">Today</div></div>
+      </div>
+
+      <div class="grid-2">
+        <section class="glass panel">
+          <div class="panel-head">
+            <h3>Opens & plays · 14 days</h3>
+            <div class="tabs">
+              <span class="tab on">Trend</span>
+              <span class="tab">IST</span>
+            </div>
+          </div>
+          <div class="chart-wrap" id="chart"></div>
+        </section>
+        <section class="glass panel">
+          <div class="panel-head">
+            <h3>Page distribution</h3>
+          </div>
+          <div class="donut-wrap" id="donut"></div>
+        </section>
+      </div>
+
+      <div class="grid-2">
+        <section class="glass panel">
+          <div class="panel-head">
+            <h3>Daily breakdown</h3>
+          </div>
+          <div style="overflow-x:auto">
+            <table class="data">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th class="num">Installs</th>
+                  <th class="num">Opens</th>
+                  <th class="num">Unique</th>
+                  <th class="num">Plays</th>
+                  <th class="num">Listeners</th>
+                </tr>
+              </thead>
+              <tbody id="series"></tbody>
+            </table>
+          </div>
+        </section>
+        <section class="glass panel">
+          <div class="panel-head">
+            <h3>Top pages</h3>
+          </div>
+          <div id="pages"></div>
+        </section>
+      </div>
     </div>
-  </main>
+  </div>
+
   <script>
     const API = '/api/analytics?days=14';
+    const COLORS = ['#1ed760', '#3dd6c6', '#5b8def', '#f5a524', '#e07a5f', '#a78bfa', '#f472b6'];
 
     function fmt(n) {
       return (n || 0).toLocaleString('en-IN');
     }
 
+    function lineChart(series) {
+      const w = 640, h = 200, pad = { t: 12, r: 12, b: 28, l: 36 };
+      const opens = series.map((r) => r.opens || 0);
+      const plays = series.map((r) => r.songPlays || 0);
+      const max = Math.max(1, ...opens, ...plays);
+      const n = series.length || 1;
+      const iw = w - pad.l - pad.r;
+      const ih = h - pad.t - pad.b;
+
+      function pts(arr) {
+        return arr.map((v, i) => {
+          const x = pad.l + (n <= 1 ? iw / 2 : (i / (n - 1)) * iw);
+          const y = pad.t + ih - (v / max) * ih;
+          return [x, y];
+        });
+      }
+      function path(arr) {
+        const p = pts(arr);
+        if (!p.length) return '';
+        return p.map((pt, i) => (i === 0 ? `M ${pt[0]} ${pt[1]}` : `L ${pt[0]} ${pt[1]}`)).join(' ');
+      }
+      function area(arr) {
+        const p = pts(arr);
+        if (!p.length) return '';
+        const base = pad.t + ih;
+        return path(arr) + ` L ${p[p.length - 1][0]} ${base} L ${p[0][0]} ${base} Z`;
+      }
+
+      const labels = series.map((r) => (r.date || '').slice(5));
+      const labelStep = Math.max(1, Math.floor(n / 7));
+
+      return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+        <defs>
+          <linearGradient id="gOpen" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#1ed760" stop-opacity="0.35"/>
+            <stop offset="100%" stop-color="#1ed760" stop-opacity="0"/>
+          </linearGradient>
+        </defs>
+        ${[0, 0.25, 0.5, 0.75, 1].map((t) => {
+          const y = pad.t + ih * (1 - t);
+          return `<line x1="${pad.l}" y1="${y}" x2="${w - pad.r}" y2="${y}" stroke="rgba(255,255,255,0.05)" />`;
+        }).join('')}
+        <path d="${area(opens)}" fill="url(#gOpen)" />
+        <path d="${path(opens)}" fill="none" stroke="#1ed760" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+        <path d="${path(plays)}" fill="none" stroke="#3dd6c6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="4 3" />
+        ${labels.map((lb, i) => {
+          if (i % labelStep !== 0 && i !== n - 1) return '';
+          const x = pad.l + (n <= 1 ? iw / 2 : (i / (n - 1)) * iw);
+          return `<text x="${x}" y="${h - 8}" text-anchor="middle" fill="#8b939c" font-size="10">${lb}</text>`;
+        }).join('')}
+      </svg>`;
+    }
+
+    function donutChart(pages) {
+      const entries = Object.entries(pages || {}).sort((a, b) => b[1] - a[1]).slice(0, 6);
+      const total = entries.reduce((s, [, c]) => s + c, 0) || 1;
+      const r = 54, cx = 70, cy = 70, stroke = 14;
+      const circ = 2 * Math.PI * r;
+      let offset = 0;
+      const arcs = entries.map(([name, c], i) => {
+        const len = (c / total) * circ;
+        const el = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none"
+          stroke="${COLORS[i % COLORS.length]}" stroke-width="${stroke}"
+          stroke-dasharray="${len} ${circ - len}" stroke-dashoffset="${-offset}"
+          stroke-linecap="butt" />`;
+        offset += len;
+        return el;
+      }).join('');
+
+      const legend = entries.length
+        ? entries.map(([name, c], i) => `
+            <div class="legend-row">
+              <div class="left"><span class="swatch" style="background:${COLORS[i % COLORS.length]}"></span>${name}</div>
+              <strong>${fmt(c)}</strong>
+            </div>`).join('')
+        : '<p style="color:var(--muted);font-size:13px">No page views yet</p>';
+
+      return `
+        <div class="donut">
+          <svg width="140" height="140" viewBox="0 0 140 140">
+            <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="${stroke}" />
+            ${arcs}
+          </svg>
+          <div class="donut-center">${fmt(total)}<span>views</span></div>
+        </div>
+        <div class="legend">${legend}</div>`;
+    }
+
     function render(data) {
       const t = data.today || {};
       document.getElementById('kpi').innerHTML = `
-        <div class="card"><div class="label">Total installs</div><div class="value">${fmt(data.totalDevices)}</div><div class="sub">Unique devices ever</div></div>
-        <div class="card"><div class="label">Today installs</div><div class="value">${fmt(t.installs)}</div><div class="sub">${t.date || ''}</div></div>
-        <div class="card"><div class="label">Today opens</div><div class="value">${fmt(t.opens)}</div><div class="sub">${fmt(t.uniqueOpens)} unique devices</div></div>
-        <div class="card"><div class="label">Today song plays</div><div class="value">${fmt(t.songPlays)}</div><div class="sub">${fmt(t.uniquePlays)} listeners</div></div>
-      `;
+        <div class="glass kpi">
+          <div class="label">Total installs</div>
+          <div class="value">${fmt(data.totalDevices)}</div>
+          <div class="sub">All-time unique devices</div>
+        </div>
+        <div class="glass kpi">
+          <div class="label">Today installs</div>
+          <div class="value">${fmt(t.installs)}</div>
+          <div class="sub muted">${t.date || 'IST'}</div>
+        </div>
+        <div class="glass kpi">
+          <div class="label">Today opens</div>
+          <div class="value">${fmt(t.opens)}</div>
+          <div class="sub">${fmt(t.uniqueOpens)} unique devices</div>
+        </div>
+        <div class="glass kpi">
+          <div class="label">Song plays today</div>
+          <div class="value">${fmt(t.songPlays)}</div>
+          <div class="sub">${fmt(t.uniquePlays)} listeners</div>
+        </div>`;
 
-      const rows = (data.series || []).slice().reverse();
-      document.getElementById('series').innerHTML = rows.map(r => `
-        <tr>
-          <td>${r.date}</td>
-          <td class="num">${fmt(r.installs)}</td>
-          <td class="num">${fmt(r.opens)}</td>
-          <td class="num">${fmt(r.uniqueOpens)}</td>
-          <td class="num">${fmt(r.songPlays)}</td>
-          <td class="num">${fmt(r.uniquePlays)}</td>
-        </tr>
-      `).join('') || '<tr><td colspan="6">No data yet</td></tr>';
+      const series = data.series || [];
+      document.getElementById('chart').innerHTML = lineChart(series);
 
-      const pages = Object.entries(data.pagesAll || {}).sort((a,b) => b[1]-a[1]);
+      document.getElementById('donut').innerHTML = donutChart(data.pagesAll || {});
+
+      const rows = series.slice().reverse();
+      document.getElementById('series').innerHTML = rows.length
+        ? rows.map((r) => `
+          <tr>
+            <td>${r.date}</td>
+            <td class="num">${fmt(r.installs)}</td>
+            <td class="num">${fmt(r.opens)}</td>
+            <td class="num">${fmt(r.uniqueOpens)}</td>
+            <td class="num">${fmt(r.songPlays)}</td>
+            <td class="num">${fmt(r.uniquePlays)}</td>
+          </tr>`).join('')
+        : '<tr><td colspan="6" style="color:var(--muted)">No data yet</td></tr>';
+
+      const pages = Object.entries(data.pagesAll || {}).sort((a, b) => b[1] - a[1]);
       const max = pages[0] ? pages[0][1] : 1;
       document.getElementById('pages').innerHTML = pages.length
         ? pages.map(([name, c]) => `
-          <div style="margin-bottom:10px">
-            <div style="display:flex;justify-content:space-between;font-size:0.9rem;margin-bottom:4px">
-              <span>${name}</span><span class="num">${fmt(c)}</span>
-            </div>
-            <div class="bar-wrap"><div class="bar" style="width:${Math.max(4, (c/max)*100)}%"></div></div>
-          </div>
-        `).join('')
-        : '<p class="meta">No page views yet</p>';
+          <div class="page-row">
+            <div class="name"><span>${name}</span><strong>${fmt(c)}</strong></div>
+            <div class="bar-track"><div class="bar-fill" style="width:${Math.max(3, (c / max) * 100)}%"></div></div>
+          </div>`).join('')
+        : '<p style="color:var(--muted);font-size:13px">No page views yet</p>';
 
-      const when = data.generatedAt ? new Date(data.generatedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }) : '';
-      document.getElementById('updated').textContent = when ? `IST · ${when}` : '';
+      const when = data.generatedAt
+        ? new Date(data.generatedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+        : '';
+      document.getElementById('updated').textContent = when ? `IST · ${when}` : 'Ready';
     }
 
     async function load() {
@@ -169,12 +510,12 @@
         if (!data.ok && data.error) throw new Error(data.error);
         render(data);
       } catch (e) {
-        document.getElementById('kpi').innerHTML = `<p class="err">${e.message || e}</p>`;
+        document.getElementById('kpi').innerHTML =
+          `<div class="glass kpi" style="grid-column:1/-1"><p class="err">${e.message || e}</p></div>`;
       }
     }
 
     load();
-    // Auto refresh only once per hour — saves Upstash Redis commands
     setInterval(load, 60 * 60 * 1000);
   </script>
 </body>
