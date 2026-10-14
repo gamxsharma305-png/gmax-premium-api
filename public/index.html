@@ -3,12 +3,105 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>GMAX · Dashboard V10</title>
+  <title>GMAX · Analytics</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root { --bg:#0a0b0e; --glass:rgba(22,24,30,.55); --border:rgba(255,255,255,.09); --text:#f7f8fa; --muted:#8a919c; --green:#22c55e; --red:#ef4444; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family:Inter,system-ui,sans-serif; background:var(--bg); color:var(--text); padding:20px; }
+    h1 { font-size:18px; margin-bottom:6px; }
+    .sub { color:var(--muted); font-size:12px; margin-bottom:18px; }
+    .kpis { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; margin-bottom:18px; }
+    .g { background:var(--glass); border:1px solid var(--border); border-radius:14px; padding:14px 16px; }
+    .g.hi { border-color:rgba(34,197,94,.35); background:linear-gradient(145deg,rgba(34,197,94,.1),rgba(255,255,255,.03)); }
+    .lab { font-size:11px; color:var(--muted); font-weight:600; }
+    .val { font-size:26px; font-weight:800; margin-top:4px; letter-spacing:-.03em; }
+    .hint { font-size:10px; color:var(--muted); margin-top:6px; line-height:1.35; }
+    table { width:100%; border-collapse:collapse; font-size:13px; margin-top:8px; }
+    th { text-align:left; color:var(--muted); font-size:10px; text-transform:uppercase; padding:8px 6px; border-bottom:1px solid var(--border); }
+    td { padding:10px 6px; border-bottom:1px solid rgba(255,255,255,.04); }
+    .num { text-align:right; font-variant-numeric:tabular-nums; }
+    .btn { background:linear-gradient(135deg,#ef4444,#dc2626); color:#fff; border:none; border-radius:10px; padding:9px 16px; font-weight:700; font-size:12px; cursor:pointer; }
+    .top { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:16px; }
+    .err { color:var(--red); padding:16px; }
+  </style>
 </head>
 <body>
-<p>Loading fixed dashboard… refresh in a moment.</p>
-<script>
-location.replace(location.pathname + '?v=' + Date.now());
-</script>
+  <div class="top">
+    <div>
+      <h1>GMAX Analytics</h1>
+      <div class="sub" id="updated">Loading…</div>
+    </div>
+    <button class="btn" type="button" onclick="load()">↻ Refresh</button>
+  </div>
+  <div class="kpis" id="kpi"></div>
+  <div class="g">
+    <div class="lab">Recent daily activity (IST)</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th class="num">New installs</th>
+          <th class="num">Opens</th>
+          <th class="num">Unique opens</th>
+          <th class="num">Plays</th>
+          <th class="num">Listeners</th>
+        </tr>
+      </thead>
+      <tbody id="series"></tbody>
+    </table>
+  </div>
+  <script>
+    const API = '/api/analytics?days=14';
+    function fmt(n) { return (n || 0).toLocaleString('en-IN'); }
+    function render(data) {
+      const t = data.today || {};
+      const a = data.active || {};
+      const u = data.uniquePlayers || {};
+      document.getElementById('kpi').innerHTML = `
+        <div class="g hi"><div class="lab">Current active (7d)</div><div class="val">${fmt(a.d7)}</div>
+          <div class="hint">≈ abhi installed (last 7 din me open). Uninstall ke baad yeh realistic hai.</div></div>
+        <div class="g hi"><div class="lab">Active today</div><div class="val">${fmt(a.today || t.uniqueOpens)}</div>
+          <div class="hint">Aaj unique devices / true persons</div></div>
+        <div class="g hi"><div class="lab">Active 30d</div><div class="val">${fmt(a.d30)}</div>
+          <div class="hint">Monthly active users</div></div>
+        <div class="g"><div class="lab">Total ever installs</div><div class="val">${fmt(data.totalDevices)}</div>
+          <div class="hint">All-time · uninstall se number kam nahi hota</div></div>
+        <div class="g"><div class="lab">Today new installs</div><div class="val">${fmt(t.installs)}</div>
+          <div class="hint">Pehli baar aaj open kiye</div></div>
+        <div class="g hi"><div class="lab">Unique listeners (7d)</div><div class="val">${fmt(u.d7)}</div>
+          <div class="hint">${fmt(t.songPlays)} plays aaj · ${fmt(t.uniquePlays)} persons (true log)</div></div>`;
+      const rows = (data.series || []).slice().reverse();
+      document.getElementById('series').innerHTML = rows.length
+        ? rows.map(r => `<tr>
+            <td>${r.date}</td>
+            <td class="num">${fmt(r.installs)}</td>
+            <td class="num">${fmt(r.opens)}</td>
+            <td class="num">${fmt(r.uniqueOpens)}</td>
+            <td class="num">${fmt(r.songPlays)}</td>
+            <td class="num">${fmt(r.uniquePlays)}</td>
+          </tr>`).join('')
+        : '<tr><td colspan="6" style="color:var(--muted)">No data yet</td></tr>';
+      const when = data.generatedAt
+        ? new Date(data.generatedAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
+        : '';
+      document.getElementById('updated').textContent = when
+        ? `IST · ${when} · auto-refresh 4h`
+        : 'Ready';
+    }
+    async function load() {
+      document.getElementById('updated').textContent = 'Loading…';
+      try {
+        const res = await fetch(API + '&t=' + Date.now());
+        const data = await res.json();
+        if (!data.ok && data.error) throw new Error(data.error);
+        render(data);
+      } catch (e) {
+        document.getElementById('kpi').innerHTML = `<div class="g err">${e.message || e}</div>`;
+      }
+    }
+    load();
+    setInterval(load, 4 * 60 * 60 * 1000);
+  </script>
 </body>
 </html>
