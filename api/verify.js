@@ -1,7 +1,10 @@
 /**
  * POST /api/verify
  * Body: { code, deviceId }
- * Success → 15 days unlock, max 2 per 30-day window (stackable → 30 days).
+ * Accepts:
+ *  - one-time codes from /api/generate-code (Tools app)
+ *  - legacy device-bound HMAC codes
+ * Success → 24h unlock
  */
 const {
   getSecret,
@@ -57,6 +60,20 @@ async function redisSet(key, value, exSeconds) {
   }
 }
 
+async function redisDel(key) {
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) return false;
+  try {
+    const r = await fetch(`${url}/del/${encodeURIComponent(key)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
 module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -67,13 +84,10 @@ module.exports = async function handler(req, res) {
   }
 
   const secret = getSecret();
-  if (!secret) {
-    return res.status(500).json({ ok: false, error: 'KEY_SECRET not configured' });
-  }
-
   const body = await readBody(req);
   const code = String(body.code || '').replace(/\D/g, '');
   const deviceId = normalizeDeviceId(body.deviceId);
+
   if (!/^\d{12}$/.test(code)) {
     return res.status(400).json({ ok: false, error: '12-digit code required' });
   }
@@ -81,21 +95,47 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ ok: false, error: 'deviceId required' });
   }
 
-  const check = verifyCode(code, deviceId, secret);
-  if (!check.ok) {
-    return res.status(400).json({
-      ok: false,
-      error: check.reason === 'mismatch' ? 'Invalid or expired code' : 'Invalid code',
-    });
-  }
-
   const now = Date.now();
-  const usedKey = `arolinks:used:${code}`;
-  const already = await redisGet(usedKey);
-  if (already) {
-    return res.status(400).json({ ok: false, error: 'Code already used' });
+  let accepted = false;
+  let mode = '';
+
+  // 1) One-time code from Tools app
+  const otcKey = `otc:${code}`;
+  const otcRaw = await redisGet(otcKey);
+  if (otcRaw) {
+    try {
+      const otc = typeof otcRaw === 'string' ? JSON.parse(otcRaw) : otcRaw;
+      if (otc && otc.used) {
+        return res.status(400).json({ ok: false, error: 'Code already used' });
+      }
+      accepted = true;
+      mode = 'otc';
+      await redisDel(otcKey);
+    } catch {
+      /* fall through */
+    }
   }
 
+  // 2) Legacy device-bound HMAC (optional)
+  if (!accepted && secret) {
+    const check = verifyCode(code, deviceId, secret, now);
+    if (check.ok) {
+      const usedKey = `arolinks:used:${code}`;
+      const already = await redisGet(usedKey);
+      if (already) {
+        return res.status(400).json({ ok: false, error: 'Code already used' });
+      }
+      accepted = true;
+      mode = 'device';
+      await redisSet(usedKey, '1', Math.ceil(UNLOCK_MS / 1000) + 86400);
+    }
+  }
+
+  if (!accepted) {
+    return res.status(400).json({ ok: false, error: 'Invalid or expired code' });
+  }
+
+  // Rate limit per music device
   const countKey = `arolinks:count:${deviceId}`;
   let stamps = [];
   try {
@@ -111,20 +151,19 @@ module.exports = async function handler(req, res) {
     const waitDays = Math.ceil((WINDOW_MS - (now - oldest)) / (24 * 60 * 60 * 1000));
     return res.status(429).json({
       ok: false,
-      error: `Limit 2 keys / 30 days. Try in ~${waitDays} days`,
+      error: `Limit ${MAX_PER_WINDOW} codes / 7 days. Try in ~${waitDays} days`,
     });
   }
 
   stamps.push(now);
-  await redisSet(usedKey, '1', Math.ceil(UNLOCK_MS / 1000) + 86400);
   await redisSet(countKey, JSON.stringify(stamps), Math.ceil(WINDOW_MS / 1000));
 
   const until = now + UNLOCK_MS;
   return res.status(200).json({
     ok: true,
     until,
-    days: 15,
-    hours: 15 * 24,
-    plan: 'arolinks',
+    days: 1,
+    hours: 24,
+    plan: mode === 'otc' ? 'tools-otc' : 'arolinks',
   });
 };
