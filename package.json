@@ -1,6 +1,6 @@
 {
   "name": "gmax-premium-api",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "description": "Secure GMAX Premium — Razorpay + Tools one-time codes (24h)",
   "scripts": {
