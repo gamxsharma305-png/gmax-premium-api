@@ -1,9 +1,8 @@
 /**
  * POST /api/verify
  * Body: { code, deviceId }
- * Accepts:
- *  - one-time codes from /api/generate-code (Tools app)
- *  - legacy device-bound HMAC codes
+ * - one-time codes from /api/generate-code (Tools app)
+ * - legacy device-bound HMAC codes
  * Success → 24h unlock
  */
 const {
@@ -112,11 +111,11 @@ module.exports = async function handler(req, res) {
       mode = 'otc';
       await redisDel(otcKey);
     } catch {
-      /* fall through */
+      /* fall through to legacy */
     }
   }
 
-  // 2) Legacy device-bound HMAC (optional)
+  // 2) Legacy device-bound HMAC
   if (!accepted && secret) {
     const check = verifyCode(code, deviceId, secret, now);
     if (check.ok) {
@@ -135,7 +134,6 @@ module.exports = async function handler(req, res) {
     return res.status(400).json({ ok: false, error: 'Invalid or expired code' });
   }
 
-  // Rate limit per music device
   const countKey = `arolinks:count:${deviceId}`;
   let stamps = [];
   try {
