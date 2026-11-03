@@ -1,15 +1,20 @@
 /**
  * POST /api/generate-code
  * Body: { deviceId?, source? }
- * Returns: { ok, code, hours: 24, expiresInSec }
- * One-time code stored in Redis; enter in Music app within 30 min.
+ * Returns one-time 12-digit code for Music app (24h unlock).
  */
-const {
-  getSecret,
-  makeRandomCode,
-  CODE_TTL_SEC,
-  UNLOCK_MS,
-} = require('../lib/arolinks-key');
+const crypto = require('crypto');
+
+const CODE_TTL_SEC = 30 * 60;
+const UNLOCK_MS = 24 * 60 * 60 * 1000;
+
+function makeRandomCode() {
+  let s = '';
+  while (s.length < 12) {
+    s += String(crypto.randomInt(0, 10));
+  }
+  return s;
+}
 
 async function readBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
@@ -47,34 +52,30 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
 
-  if (!getSecret() && !process.env.UPSTASH_REDIS_REST_URL) {
-    return res.status(500).json({ ok: false, error: 'Server not configured' });
+  if (!process.env.UPSTASH_REDIS_REST_URL || !process.env.UPSTASH_REDIS_REST_TOKEN) {
+    return res.status(500).json({
+      ok: false,
+      error: 'Redis not configured — set UPSTASH_REDIS_REST_URL and TOKEN on Vercel',
+    });
   }
 
   const body = await readBody(req);
   const source = String(body.source || 'tools').slice(0, 40);
 
   let code = makeRandomCode();
-  const key = `otc:${code}`;
   const payload = JSON.stringify({
     createdAt: Date.now(),
     source,
     used: false,
   });
 
-  const saved = await redisSet(key, payload, CODE_TTL_SEC);
+  let saved = await redisSet(`otc:${code}`, payload, CODE_TTL_SEC);
   if (!saved) {
-    if (!process.env.UPSTASH_REDIS_REST_URL) {
-      return res.status(500).json({
-        ok: false,
-        error: 'Redis not configured — cannot issue one-time codes',
-      });
-    }
     code = makeRandomCode();
-    const ok2 = await redisSet(`otc:${code}`, payload, CODE_TTL_SEC);
-    if (!ok2) {
-      return res.status(502).json({ ok: false, error: 'Could not store code' });
-    }
+    saved = await redisSet(`otc:${code}`, payload, CODE_TTL_SEC);
+  }
+  if (!saved) {
+    return res.status(502).json({ ok: false, error: 'Could not store code in Redis' });
   }
 
   return res.status(200).json({
