@@ -1,13 +1,13 @@
 {
   "name": "gmax-premium-api",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
-  "description": "Secure GMAX Premium — Razorpay verify + claim",
+  "description": "Secure GMAX Premium — Razorpay + Tools one-time codes (24h)",
   "scripts": {
     "dev": "vercel dev",
     "deploy": "vercel --prod"
   },
   "engines": {
-    "node": ">=18"
+    "node": "20.x"
   }
 }
